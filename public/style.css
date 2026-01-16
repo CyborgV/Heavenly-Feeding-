@@ -1,0 +1,43 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #0f1216;
+  color: #f2e9d8;
+  font-family: "Helvetica Neue", "PingFang SC", "Microsoft Yahei", sans-serif;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#ui {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.title {
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.tips {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+#status {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #ffd86b;
+}
