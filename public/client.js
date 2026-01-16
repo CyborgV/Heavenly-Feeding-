@@ -31,12 +31,12 @@ let maxFullness = 100;
 const MOVE_SPEED = 220;
 const MAX_ANGULAR_SPEED = 4.5;
 const CHOPSTICK_LENGTH = 200;
-const CONE_RADIUS = 140;
-const CONE_HALF_ANGLE = Math.PI / 4;
+const CONE_RADIUS = 180;
+const CONE_HALF_ANGLE = Math.PI / 3;
 const MOUTH_RADIUS = 26;
 
-const BODY_SIZE = 126;
-const MOUTH_SIZE = 80;
+const BODY_SIZE = 139;
+const MOUTH_SIZE = 72;
 const CHOPSTICK_WIDTH = 240;
 const CHOPSTICK_HEIGHT = 32;
 const BACKGROUND_ALPHA = 0.35;
