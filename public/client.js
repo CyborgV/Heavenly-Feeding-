@@ -35,10 +35,10 @@ const CONE_RADIUS = 90;
 const CONE_HALF_ANGLE = Math.PI / 5;
 const MOUTH_RADIUS = 22;
 
-const BODY_SIZE = 84;
+const BODY_SIZE = 126;
 const MOUTH_SIZE = 72;
-const CHOPSTICK_WIDTH = 180;
-const CHOPSTICK_HEIGHT = 24;
+const CHOPSTICK_WIDTH = 240;
+const CHOPSTICK_HEIGHT = 32;
 const BACKGROUND_ALPHA = 0.35;
 const TIP_MARKER_RADIUS = 7;
 
@@ -97,8 +97,7 @@ function tipPosition(player) {
 }
 
 function mouthPosition(player) {
-  const offset = player.side === "left" ? 22 : -22;
-  return { x: player.x + offset, y: player.y - 8 };
+  return { x: player.x, y: player.y - BODY_SIZE * 0.55 };
 }
 
 function connect() {
@@ -384,7 +383,7 @@ function renderPlayers(scene, graphics, overlay, players) {
         chopstick = scene.add.image(player.x, player.y, chopstickKey);
         chopstick.setOrigin(0.1, 0.5);
         chopstick.setDisplaySize(CHOPSTICK_WIDTH, CHOPSTICK_HEIGHT);
-        chopstick.setDepth(2);
+        chopstick.setDepth(3);
         scene.chopstickSprites.set(player.id, chopstick);
       } else if (chopstick.texture.key !== chopstickKey) {
         chopstick.setTexture(chopstickKey);
@@ -431,6 +430,11 @@ function renderPlayers(scene, graphics, overlay, players) {
     }
 
     const tip = tipPosition(player);
+    overlay.lineStyle(3, 0xf2e9d8, 0.6);
+    overlay.beginPath();
+    overlay.moveTo(player.x, player.y);
+    overlay.lineTo(tip.x, tip.y);
+    overlay.strokePath();
     drawCone(overlay, tip, player.angle, CONE_RADIUS, CONE_HALF_ANGLE, 0x4b7867);
     overlay.fillStyle(0xfff1b8, 0.9);
     overlay.fillCircle(tip.x, tip.y, TIP_MARKER_RADIUS);
