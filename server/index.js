@@ -17,10 +17,10 @@ const STATE_RATE = 30;
 
 const MOVE_SPEED = 220;
 const MAX_ANGULAR_SPEED = 4.5;
-const CHOPSTICK_LENGTH = 80;
-const CONE_RADIUS = 90;
-const CONE_HALF_ANGLE = Math.PI / 5;
-const MOUTH_RADIUS = 22;
+const CHOPSTICK_LENGTH = 200;
+const CONE_RADIUS = 140;
+const CONE_HALF_ANGLE = Math.PI / 4;
+const MOUTH_RADIUS = 26;
 const EAT_TIME = 0.4;
 const MAX_FOOD = 8;
 const SPAWN_INTERVAL = 2.0;

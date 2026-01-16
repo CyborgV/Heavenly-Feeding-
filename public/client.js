@@ -30,13 +30,13 @@ let maxFullness = 100;
 
 const MOVE_SPEED = 220;
 const MAX_ANGULAR_SPEED = 4.5;
-const CHOPSTICK_LENGTH = 80;
-const CONE_RADIUS = 90;
-const CONE_HALF_ANGLE = Math.PI / 5;
-const MOUTH_RADIUS = 22;
+const CHOPSTICK_LENGTH = 200;
+const CONE_RADIUS = 140;
+const CONE_HALF_ANGLE = Math.PI / 4;
+const MOUTH_RADIUS = 26;
 
 const BODY_SIZE = 126;
-const MOUTH_SIZE = 72;
+const MOUTH_SIZE = 80;
 const CHOPSTICK_WIDTH = 240;
 const CHOPSTICK_HEIGHT = 32;
 const BACKGROUND_ALPHA = 0.35;
@@ -97,7 +97,7 @@ function tipPosition(player) {
 }
 
 function mouthPosition(player) {
-  return { x: player.x, y: player.y - BODY_SIZE * 0.55 };
+  return { x: player.x, y: player.y - BODY_SIZE * 0.75 };
 }
 
 function connect() {
