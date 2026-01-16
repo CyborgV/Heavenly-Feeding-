@@ -5,6 +5,10 @@ const config = {
   parent: "game",
   width: 960,
   height: 540,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
   backgroundColor: "#111820",
   physics: {
     default: "matter",
@@ -187,6 +191,13 @@ function create() {
     release: "SPACE"
   });
   this.input.on("pointermove", () => {});
+  this.scale.on("resize", (gameSize) => {
+    config.width = gameSize.width;
+    config.height = gameSize.height;
+    if (this.backgroundSprite) {
+      this.backgroundSprite.setDisplaySize(config.width, config.height);
+    }
+  });
 }
 
 function update(time, delta) {

@@ -17,6 +17,10 @@ body {
   align-items: center;
 }
 
+canvas {
+  display: block;
+}
+
 #ui {
   position: absolute;
   top: 12px;
