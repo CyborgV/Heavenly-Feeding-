@@ -51,6 +51,7 @@ const room = {
   foods: [],
   nextFoodId: 1,
   lastSpawnTime: 0,
+  time: 0,
   gameOver: false,
   winnerId: null,
   loserId: null
@@ -192,6 +193,7 @@ function handleEating(dt) {
       if (food.mouthTimers[opponentId] >= EAT_TIME) {
         const eater = player;
         eater.fullness += food.value;
+        eater.mouthOpenUntil = room.time + 0.35;
         if (food.heldBy) {
           const holder = room.players.get(food.heldBy);
           if (holder) holder.holdingFoodId = null;
@@ -239,6 +241,7 @@ function tick() {
   updateHeldFoods();
   updateFoods(DT);
   handleEating(DT);
+  room.time += DT;
   room.lastSpawnTime += DT;
   if (room.lastSpawnTime >= SPAWN_INTERVAL) {
     room.lastSpawnTime = 0;
@@ -259,6 +262,7 @@ function broadcastState() {
       y: player.y,
       angle: player.angle,
       fullness: player.fullness,
+      mouthOpen: room.time < (player.mouthOpenUntil || 0),
       holdingFoodId: player.holdingFoodId
     })),
     foods: room.foods.map((food) => ({
@@ -283,6 +287,7 @@ function resetGameIfNeeded() {
     room.gameOver = false;
     room.winnerId = null;
     room.loserId = null;
+    room.time = 0;
     room.foods = [];
     room.nextFoodId = 1;
   }
@@ -315,6 +320,7 @@ wss.on("connection", (ws) => {
     angle: side === "left" ? 0 : Math.PI,
     targetAngle: side === "left" ? 0 : Math.PI,
     fullness: 0,
+    mouthOpenUntil: 0,
     holdingFoodId: null,
     input: {
       moveX: 0,

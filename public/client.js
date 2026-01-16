@@ -45,12 +45,14 @@ const PLAYER_TEXTURE_KEYS = {
   left: {
     body: "player_left_body",
     chopstick: "player_left_chopstick",
-    mouth: "player_left_mouth"
+    mouthClosed: "player_left_mouth_closed",
+    mouthOpen: "player_left_mouth_open"
   },
   right: {
     body: "player_right_body",
     chopstick: "player_right_chopstick",
-    mouth: "player_right_mouth"
+    mouthClosed: "player_right_mouth_closed",
+    mouthOpen: "player_right_mouth_open"
   }
 };
 
@@ -142,8 +144,16 @@ function preload() {
   this.load.image("player_right_body", "/assets/players/right_body.png");
   this.load.image("player_left_chopstick", "/assets/players/left_chopstick.png");
   this.load.image("player_right_chopstick", "/assets/players/right_chopstick.png");
-  this.load.image("player_left_mouth", "/assets/players/left_mouth.png");
-  this.load.image("player_right_mouth", "/assets/players/right_mouth.png");
+  this.load.image("player_left_mouth_closed", "/assets/players/left_mouth.png");
+  this.load.image("player_right_mouth_closed", "/assets/players/right_mouth.png");
+  this.load.image(
+    "player_left_mouth_open",
+    "/assets/players/left_mouth_open.png"
+  );
+  this.load.image(
+    "player_right_mouth_open",
+    "/assets/players/right_mouth_open.png"
+  );
   for (let i = 1; i <= 10; i += 1) {
     const id = String(i).padStart(2, "0");
     this.load.image(`food_${id}`, `/assets/foods/food_${id}.png`);
@@ -272,7 +282,12 @@ function renderScene(scene, localPlayer, state) {
 
   const players = state.players.map((player) => {
     if (player.id === localId) {
-      return { ...localPlayer, side: player.side, fullness: player.fullness };
+      return {
+        ...localPlayer,
+        side: player.side,
+        fullness: player.fullness,
+        mouthOpen: player.mouthOpen
+      };
     }
     return player;
   });
@@ -330,7 +345,7 @@ function renderPlayers(scene, graphics, players) {
     const keys = PLAYER_TEXTURE_KEYS[player.side];
     const bodyKey = keys?.body;
     const chopstickKey = keys?.chopstick;
-    const mouthKey = keys?.mouth;
+    const mouthKey = player.mouthOpen ? keys?.mouthOpen : keys?.mouthClosed;
     const hasBody = bodyKey && scene.textures.exists(bodyKey);
     const hasChopstick = chopstickKey && scene.textures.exists(chopstickKey);
     const hasMouth = mouthKey && scene.textures.exists(mouthKey);

@@ -9,6 +9,8 @@ This folder is reserved for your art updates.
 - `players/right_chopstick.png`
 - `players/left_mouth.png`
 - `players/right_mouth.png`
+- `players/left_mouth_open.png`
+- `players/right_mouth_open.png`
 
 ## Background
 - `backgrounds/wave.jpg`
