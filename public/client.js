@@ -35,11 +35,12 @@ const CONE_RADIUS = 90;
 const CONE_HALF_ANGLE = Math.PI / 5;
 const MOUTH_RADIUS = 22;
 
-const BODY_SIZE = 36;
-const MOUTH_SIZE = 44;
-const CHOPSTICK_WIDTH = 80;
-const CHOPSTICK_HEIGHT = 12;
+const BODY_SIZE = 84;
+const MOUTH_SIZE = 72;
+const CHOPSTICK_WIDTH = 180;
+const CHOPSTICK_HEIGHT = 24;
 const BACKGROUND_ALPHA = 0.35;
+const TIP_MARKER_RADIUS = 7;
 
 const PLAYER_TEXTURE_KEYS = {
   left: {
@@ -162,6 +163,7 @@ function preload() {
 
 function create() {
   this.graphics = this.add.graphics();
+  this.overlayGraphics = this.add.graphics();
   this.backgroundSprite = null;
   this.foodSprites = new Map();
   this.playerSprites = new Map();
@@ -274,7 +276,9 @@ function sendInput(time, move, aim, release) {
 
 function renderScene(scene, localPlayer, state) {
   const g = scene.graphics;
+  const overlay = scene.overlayGraphics;
   g.clear();
+  overlay.clear();
   if (!scene.backgroundSprite) {
     g.fillStyle(0x111820, 1);
     g.fillRect(0, 0, config.width, config.height);
@@ -292,7 +296,7 @@ function renderScene(scene, localPlayer, state) {
     return player;
   });
 
-  renderPlayers(scene, g, players);
+  renderPlayers(scene, g, overlay, players);
 
   renderFoods(scene, g, players, state.foods);
 
@@ -338,7 +342,7 @@ function renderFoods(scene, graphics, players, foods) {
   }
 }
 
-function renderPlayers(scene, graphics, players) {
+function renderPlayers(scene, graphics, overlay, players) {
   const seen = new Set();
   for (const player of players) {
     seen.add(player.id);
@@ -380,7 +384,7 @@ function renderPlayers(scene, graphics, players) {
         chopstick = scene.add.image(player.x, player.y, chopstickKey);
         chopstick.setOrigin(0.1, 0.5);
         chopstick.setDisplaySize(CHOPSTICK_WIDTH, CHOPSTICK_HEIGHT);
-        chopstick.setDepth(1);
+        chopstick.setDepth(2);
         scene.chopstickSprites.set(player.id, chopstick);
       } else if (chopstick.texture.key !== chopstickKey) {
         chopstick.setTexture(chopstickKey);
@@ -427,7 +431,9 @@ function renderPlayers(scene, graphics, players) {
     }
 
     const tip = tipPosition(player);
-    drawCone(graphics, tip, player.angle, CONE_RADIUS, CONE_HALF_ANGLE, 0x4b7867);
+    drawCone(overlay, tip, player.angle, CONE_RADIUS, CONE_HALF_ANGLE, 0x4b7867);
+    overlay.fillStyle(0xfff1b8, 0.9);
+    overlay.fillCircle(tip.x, tip.y, TIP_MARKER_RADIUS);
   }
 
   cleanupPlayerSprites(scene.playerSprites, seen);
