@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.resolve(__dirname, "../public");
 
-const PORT = process.env.PORT || 3000;
+const DEFAULT_PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const WIDTH = 960;
 const HEIGHT = 540;
 const TICK_RATE = 60;
@@ -471,6 +471,24 @@ setInterval(() => {
   }
 }, 1000 / STATE_RATE);
 
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+function startServer(port) {
+  server.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+}
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    const fallbackPort = DEFAULT_PORT + 1;
+    console.warn(
+      `Port ${DEFAULT_PORT} in use, retrying on ${fallbackPort}...`
+    );
+    server.close(() => {
+      startServer(fallbackPort);
+    });
+    return;
+  }
+  throw error;
 });
+
+startServer(DEFAULT_PORT);
