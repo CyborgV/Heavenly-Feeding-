@@ -21,7 +21,9 @@ const CHOPSTICK_LENGTH = 181;
 const CONE_RADIUS = 180;
 const CONE_HALF_ANGLE = Math.PI / 3;
 const PICKUP_CLOSE_RADIUS = 26;
-const MOUTH_RADIUS = 26;
+const MOUTH_RADIUS = 30;
+const MOUTH_OFFSET_X = 0;
+const MOUTH_OFFSET_Y = 84;
 const EAT_TIME = 0.4;
 const MAX_FOOD = 8;
 const SPAWN_INTERVAL = 2.0;
@@ -106,8 +108,10 @@ function tipPosition(player) {
 }
 
 function mouthPosition(player) {
-  const offset = player.side === "left" ? 22 : -22;
-  return { x: player.x + offset, y: player.y - 8 };
+  return {
+    x: player.x + MOUTH_OFFSET_X,
+    y: player.y - MOUTH_OFFSET_Y
+  };
 }
 
 function isInCone(player, food) {
