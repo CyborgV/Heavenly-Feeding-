@@ -39,6 +39,7 @@ const BODY_SIZE = 36;
 const MOUTH_SIZE = 44;
 const CHOPSTICK_WIDTH = 80;
 const CHOPSTICK_HEIGHT = 12;
+const BACKGROUND_ALPHA = 0.35;
 
 const PLAYER_TEXTURE_KEYS = {
   left: {
@@ -136,6 +137,7 @@ function connect() {
 }
 
 function preload() {
+  this.load.image("bg_wave", "/assets/backgrounds/wave.jpg");
   this.load.image("player_left_body", "/assets/players/left_body.png");
   this.load.image("player_right_body", "/assets/players/right_body.png");
   this.load.image("player_left_chopstick", "/assets/players/left_chopstick.png");
@@ -150,10 +152,18 @@ function preload() {
 
 function create() {
   this.graphics = this.add.graphics();
+  this.backgroundSprite = null;
   this.foodSprites = new Map();
   this.playerSprites = new Map();
   this.chopstickSprites = new Map();
   this.mouthSprites = new Map();
+  if (this.textures.exists("bg_wave")) {
+    this.backgroundSprite = this.add.image(0, 0, "bg_wave");
+    this.backgroundSprite.setOrigin(0, 0);
+    this.backgroundSprite.setDisplaySize(config.width, config.height);
+    this.backgroundSprite.setAlpha(BACKGROUND_ALPHA);
+    this.backgroundSprite.setDepth(0);
+  }
   this.uiText = this.add.text(16, 80, "", {
     fontSize: "14px",
     color: "#f2e9d8"
@@ -255,8 +265,10 @@ function sendInput(time, move, aim, release) {
 function renderScene(scene, localPlayer, state) {
   const g = scene.graphics;
   g.clear();
-  g.fillStyle(0x111820, 1);
-  g.fillRect(0, 0, config.width, config.height);
+  if (!scene.backgroundSprite) {
+    g.fillStyle(0x111820, 1);
+    g.fillRect(0, 0, config.width, config.height);
+  }
 
   const players = state.players.map((player) => {
     if (player.id === localId) {

@@ -10,6 +10,9 @@ This folder is reserved for your art updates.
 - `players/left_mouth.png`
 - `players/right_mouth.png`
 
+## Background
+- `backgrounds/wave.jpg`
+
 ## Foods (10 variants)
 - `foods/food_01.png`
 - `foods/food_02.png`
