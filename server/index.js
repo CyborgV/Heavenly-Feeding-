@@ -23,7 +23,8 @@ const CONE_HALF_ANGLE = Math.PI / 3;
 const PICKUP_CLOSE_RADIUS = 26;
 const MOUTH_RADIUS = 30;
 const MOUTH_OFFSET_X = 0;
-const MOUTH_OFFSET_Y = 84;
+const MOUTH_OFFSET_Y_LEFT = 84;
+const MOUTH_OFFSET_Y_RIGHT = 76;
 const EAT_TIME = 0.4;
 const MAX_FOOD = 8;
 const SPAWN_INTERVAL = 2.0;
@@ -108,9 +109,11 @@ function tipPosition(player) {
 }
 
 function mouthPosition(player) {
+  const offsetY =
+    player.side === "right" ? MOUTH_OFFSET_Y_RIGHT : MOUTH_OFFSET_Y_LEFT;
   return {
     x: player.x + MOUTH_OFFSET_X,
-    y: player.y - MOUTH_OFFSET_Y
+    y: player.y - offsetY
   };
 }
 
