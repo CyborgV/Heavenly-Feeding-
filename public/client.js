@@ -41,8 +41,7 @@ const MOUTH_RADIUS = 26;
 
 const BODY_SIZE = 139;
 const MOUTH_SIZE = 72;
-const CHOPSTICK_WIDTH = 240;
-const CHOPSTICK_HEIGHT = 32;
+const CHOPSTICK_SCALE = 1.0;
 const BACKGROUND_ALPHA = 0.35;
 const TIP_MARKER_RADIUS = 7;
 
@@ -101,7 +100,7 @@ function tipPosition(player) {
 }
 
 function mouthPosition(player) {
-  return { x: player.x, y: player.y - BODY_SIZE * 0.75 };
+  return { x: player.x, y: player.y - BODY_SIZE * 0.6 };
 }
 
 function connect() {
@@ -393,7 +392,7 @@ function renderPlayers(scene, graphics, overlay, players) {
       if (!chopstick) {
         chopstick = scene.add.image(player.x, player.y, chopstickKey);
         chopstick.setOrigin(0.1, 0.5);
-        chopstick.setDisplaySize(CHOPSTICK_WIDTH, CHOPSTICK_HEIGHT);
+        chopstick.setScale(CHOPSTICK_SCALE);
         chopstick.setDepth(3);
         scene.chopstickSprites.set(player.id, chopstick);
       } else if (chopstick.texture.key !== chopstickKey) {
