@@ -36,6 +36,7 @@ const MOVE_SPEED = 220;
 const MAX_ANGULAR_SPEED = 4.5;
 const BODY_SIZE = 139;
 const MOUTH_SIZE = 72;
+const MOUTH_OPEN_SCALE = 1.4;
 const CHOPSTICK_LENGTH = 181;
 const CHOPSTICK_DISPLAY_SCALE = 1.3;
 const CONE_RADIUS = 180;
@@ -449,12 +450,19 @@ function renderPlayers(scene, graphics, overlay, players) {
       let mouthSprite = scene.mouthSprites.get(player.id);
       if (!mouthSprite) {
         mouthSprite = scene.add.image(mouth.x, mouth.y, mouthKey);
-        mouthSprite.setDisplaySize(MOUTH_SIZE, MOUTH_SIZE);
+        const size = player.mouthOpen
+          ? MOUTH_SIZE * MOUTH_OPEN_SCALE
+          : MOUTH_SIZE;
+        mouthSprite.setDisplaySize(size, size);
         mouthSprite.setDepth(1);
         scene.mouthSprites.set(player.id, mouthSprite);
       } else if (mouthSprite.texture.key !== mouthKey) {
         mouthSprite.setTexture(mouthKey);
       }
+      const size = player.mouthOpen
+        ? MOUTH_SIZE * MOUTH_OPEN_SCALE
+        : MOUTH_SIZE;
+      mouthSprite.setDisplaySize(size, size);
       mouthSprite.setPosition(mouth.x, mouth.y);
       mouthSprite.setFlipX(!facingRight);
     } else {
