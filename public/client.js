@@ -4,7 +4,6 @@ const inviteEl = document.getElementById("invite");
 const debugEl = document.getElementById("debugInfo");
 const readyBtn = document.getElementById("readyBtn");
 const newRoomBtn = document.getElementById("newRoomBtn");
-const toggleTextureBtn = document.getElementById("toggleTextureBtn");
 const aboutBtn = document.getElementById("aboutBtn");
 const aboutModal = document.getElementById("aboutModal");
 const aboutClose = document.getElementById("aboutClose");
@@ -163,36 +162,18 @@ function updateReadyButton() {
   readyBtn.textContent = localReady ? "取消就绪" : "点击就绪";
 }
 
-function updateTextureButton() {
-  if (!toggleTextureBtn) return;
-  toggleTextureBtn.textContent = texturesEnabled ? "关闭贴图" : "开启贴图";
-}
-
 function getScale() {
   const scaleX = config.width / VIRTUAL_WIDTH;
   const scaleY = config.height / VIRTUAL_HEIGHT;
-  return Math.min(scaleX, scaleY);
+  return Math.max(scaleX, scaleY);
 }
 
 function updateCameraViewport(scene) {
   const scale = getScale();
-  const viewWidth = VIRTUAL_WIDTH * scale;
-  const viewHeight = VIRTUAL_HEIGHT * scale;
-  const offsetX = (config.width - viewWidth) / 2;
-  const offsetY = (config.height - viewHeight) / 2;
-  scene.cameras.main.setViewport(offsetX, offsetY, viewWidth, viewHeight);
+  scene.cameras.main.setViewport(0, 0, config.width, config.height);
+  scene.cameras.main.setBounds(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
   scene.cameras.main.setZoom(scale);
-  scene.cameras.main.setScroll(0, 0);
-}
-
-function sendTextureToggle() {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(
-    JSON.stringify({
-      type: "texture",
-      enabled: texturesEnabled
-    })
-  );
+  scene.cameras.main.centerOn(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2);
 }
 
 function updateDebugInfo() {
@@ -265,7 +246,6 @@ function connect() {
       serverState = msg;
       if (typeof msg.texturesEnabled === "boolean") {
         texturesEnabled = msg.texturesEnabled;
-        updateTextureButton();
       }
       if (msg.gameOver) {
         const winText =
@@ -742,7 +722,6 @@ function drawCone(graphics, origin, angle, radius, halfAngle, color) {
 
 initRoom();
 updateReadyButton();
-updateTextureButton();
 readyBtn.addEventListener("click", () => {
   if (readyBtn.disabled) return;
   localReady = !localReady;
@@ -752,12 +731,6 @@ readyBtn.addEventListener("click", () => {
 
 newRoomBtn.addEventListener("click", () => {
   switchRoom();
-});
-
-toggleTextureBtn.addEventListener("click", () => {
-  texturesEnabled = !texturesEnabled;
-  updateTextureButton();
-  sendTextureToggle();
 });
 
 aboutBtn.addEventListener("click", () => {
