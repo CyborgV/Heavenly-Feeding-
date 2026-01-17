@@ -86,16 +86,19 @@ canvas {
   top: 0;
   right: 0;
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
+  z-index: 12;
 }
 
 #readyBtn,
 #newRoomBtn {
   padding: 6px 10px;
   font-size: 12px;
-  background: #2f4256;
-  color: #ffffff;
-  border: 1px solid #89a6c1;
+  background: #2a3a4a;
+  color: #f2e9d8;
+  border: 1px solid #3e5568;
   border-radius: 4px;
   cursor: pointer;
 }
