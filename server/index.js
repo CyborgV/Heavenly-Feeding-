@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.resolve(__dirname, "../public");
 
 const DEFAULT_PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+const MAX_PORT_TRIES = 10;
+let activePort = DEFAULT_PORT;
 const WIDTH = 960;
 const HEIGHT = 540;
 const TICK_RATE = 60;
@@ -18,14 +20,14 @@ const STATE_RATE = 30;
 const MOVE_SPEED = 220;
 const MAX_ANGULAR_SPEED = 4.5;
 const CHOPSTICK_LENGTH = 181;
-const CONE_RADIUS = 180;
+const CONE_RADIUS = 162;
 const CONE_HALF_ANGLE = Math.PI / 3;
 const PICKUP_CLOSE_RADIUS = 26;
 const MOUTH_RADIUS = 30;
 const MOUTH_OFFSET_X = 0;
 const MOUTH_OFFSET_Y_LEFT = 84;
 const MOUTH_OFFSET_Y_RIGHT = 67;
-const EAT_TIME = 0.4;
+const EAT_TIME = 0.3;
 const MAX_FOOD = 8;
 const SPAWN_INTERVAL = 2.0;
 const GRAVITY = 170;
@@ -49,6 +51,14 @@ app.use(express.static(PUBLIC_DIR));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+wss.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    return;
+  }
+  throw error;
+});
+
+const HEARTBEAT_INTERVAL = 15000;
 
 const rooms = new Map();
 
@@ -63,7 +73,8 @@ function createRoom(roomId) {
     gameOver: false,
     winnerId: null,
     loserId: null,
-    started: false
+    started: false,
+    texturesEnabled: true
   };
 }
 
@@ -201,7 +212,9 @@ function updateHeldFoods(room) {
 
 function handleEating(room, dt) {
   for (const food of room.foods) {
+    if (food.state !== "held" || !food.heldBy) continue;
     for (const player of room.players.values()) {
+      if (food.heldBy === player.id) continue;
       const opponentId = player.id;
       const mouth = mouthPosition(player);
       const dist = Math.hypot(food.x - mouth.x, food.y - mouth.y);
@@ -283,6 +296,7 @@ function broadcastState(room) {
     gameOver: room.gameOver,
     winnerId: room.winnerId,
     loserId: room.loserId || null,
+    texturesEnabled: room.texturesEnabled,
     players: Array.from(room.players.values()).map((player) => ({
       id: player.id,
       side: player.side,
@@ -372,6 +386,10 @@ function startRoom(room) {
 }
 
 wss.on("connection", (ws, req) => {
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
   const roomId = requestUrl.searchParams.get("room") || "lobby";
   const room = getRoom(roomId);
@@ -441,6 +459,9 @@ wss.on("connection", (ws, req) => {
         startRoom(room);
       }
     }
+    if (msg.type === "texture") {
+      room.texturesEnabled = Boolean(msg.enabled);
+    }
   });
 
   ws.on("close", () => {
@@ -458,6 +479,17 @@ wss.on("connection", (ws, req) => {
     }
   });
 });
+
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) {
+      ws.terminate();
+      continue;
+    }
+    ws.isAlive = false;
+    ws.ping();
+  }
+}, HEARTBEAT_INTERVAL);
 
 setInterval(() => {
   for (const room of rooms.values()) {
@@ -479,12 +511,16 @@ function startServer(port) {
 
 server.on("error", (error) => {
   if (error.code === "EADDRINUSE") {
-    const fallbackPort = DEFAULT_PORT + 1;
+    activePort += 1;
+    if (activePort > DEFAULT_PORT + MAX_PORT_TRIES) {
+      console.error("No available ports found.");
+      process.exit(1);
+    }
     console.warn(
-      `Port ${DEFAULT_PORT} in use, retrying on ${fallbackPort}...`
+      `Port in use, retrying on ${activePort}...`
     );
     server.close(() => {
-      startServer(fallbackPort);
+      startServer(activePort);
     });
     return;
   }

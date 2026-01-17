@@ -137,6 +137,81 @@ ngrok http 3000
 ngrok 会输出一个 `https://xxxx.ngrok-free.app` 的公网链接，把它发给朋友即可。  
 注意：ngrok 免费链接每次启动都会变化。
 
+### 线上部署（阿里云 + 域名）
+
+已部署到 `https://heavenlyfeeding.com`（Nginx 反代 + Node 服务）。  
+如需自行部署，可参考以下流程：
+
+1) 服务器安装依赖（Alibaba Cloud Linux / RHEL）
+```bash
+sudo dnf install -y git nginx
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+```
+
+2) 拉取代码并安装依赖
+```bash
+sudo mkdir -p /opt/heavenly-feeding
+sudo chown -R admin:admin /opt/heavenly-feeding
+git clone https://github.com/CyborgV/Heavenly-Feeding-.git /opt/heavenly-feeding
+cd /opt/heavenly-feeding
+npm install
+```
+
+3) systemd 常驻服务
+```bash
+sudo tee /etc/systemd/system/heavenly-feeding.service > /dev/null <<'EOF'
+[Unit]
+Description=Heavenly Feeding Server
+After=network.target
+
+[Service]
+Type=simple
+User=admin
+WorkingDirectory=/opt/heavenly-feeding
+Environment=PORT=3000
+ExecStart=/usr/bin/node /opt/heavenly-feeding/server/index.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now heavenly-feeding
+```
+
+4) Nginx 反向代理
+```bash
+sudo tee /etc/nginx/conf.d/heavenlyfeeding.conf > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name heavenlyfeeding.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+EOF
+
+sudo nginx -t
+sudo systemctl enable --now nginx
+```
+
+5) HTTPS 证书（Certbot）
+```bash
+sudo dnf install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d heavenlyfeeding.com
+```
+
+需要确保安全组开放 80/443，并在 Cloudflare 中将域名 A 记录指向服务器公网 IP。
+
 ---
 
 ## 七、美术与调试

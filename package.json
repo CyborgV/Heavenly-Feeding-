@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node server/index.js"
+    "dev": "node server/index.js",
+    "tunnel": "sh -c 'pkill ngrok || true; lsof -ti :3000 | xargs kill -9 || true; npm start & sleep 2; ngrok http 3000'"
   },
   "dependencies": {
     "express": "^4.19.2",

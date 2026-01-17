@@ -72,20 +72,38 @@ canvas {
   color: #ffd86b;
 }
 
-#readyBtn {
+.debugInfo {
+  font-size: 11px;
+  opacity: 0.75;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-width: 520px;
+  word-break: break-all;
+}
+
+#controls {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  gap: 8px;
+}
+
+#readyBtn,
+#newRoomBtn,
+#toggleTextureBtn {
   padding: 6px 10px;
   font-size: 12px;
-  background: #2a3a4a;
-  color: #f2e9d8;
-  border: 1px solid #3e5568;
+  background: #2f4256;
+  color: #ffffff;
+  border: 1px solid #89a6c1;
   border-radius: 4px;
   cursor: pointer;
 }
 
-#readyBtn[disabled] {
+#readyBtn[disabled],
+#newRoomBtn[disabled],
+#toggleTextureBtn[disabled] {
   opacity: 0.5;
   cursor: not-allowed;
 }

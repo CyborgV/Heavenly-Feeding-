@@ -1,16 +1,22 @@
 const statusEl = document.getElementById("status");
 const roomEl = document.getElementById("room");
 const inviteEl = document.getElementById("invite");
+const debugEl = document.getElementById("debugInfo");
 const readyBtn = document.getElementById("readyBtn");
+const newRoomBtn = document.getElementById("newRoomBtn");
+const toggleTextureBtn = document.getElementById("toggleTextureBtn");
 const aboutBtn = document.getElementById("aboutBtn");
 const aboutModal = document.getElementById("aboutModal");
 const aboutClose = document.getElementById("aboutClose");
 
+const VIRTUAL_WIDTH = 960;
+const VIRTUAL_HEIGHT = 540;
+
 const config = {
   type: Phaser.AUTO,
   parent: "game",
-  width: 960,
-  height: 540,
+  width: VIRTUAL_WIDTH,
+  height: VIRTUAL_HEIGHT,
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH
@@ -29,6 +35,8 @@ const config = {
   }
 };
 
+const WS_HOST = "ws.heavenlyfeeding.com";
+
 let game;
 let socket;
 let localId = null;
@@ -39,6 +47,9 @@ let serverState = null;
 let predictedPlayer = null;
 let lastInputSent = 0;
 let maxFullness = 100;
+let texturesEnabled = true;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
 
 const MOVE_SPEED = 220;
 const MAX_ANGULAR_SPEED = 4.5;
@@ -49,7 +60,7 @@ const RIGHT_MOUTH_OFFSET_MULT = 0.48;
 const MOUTH_OPEN_SCALE = 1.4;
 const CHOPSTICK_LENGTH = 181;
 const CHOPSTICK_DISPLAY_SCALE = 1.3;
-const CONE_RADIUS = 180;
+const CONE_RADIUS = 162;
 const CONE_HALF_ANGLE = Math.PI / 3;
 const MOUTH_RADIUS = 26;
 const BACKGROUND_ALPHA = 0.35;
@@ -137,6 +148,13 @@ function initRoom() {
   inviteEl.textContent = `邀请链接：${url.toString()}`;
 }
 
+function switchRoom() {
+  const url = new URL(window.location.href);
+  const newRoomId = Math.random().toString(36).slice(2, 8);
+  url.searchParams.set("room", newRoomId);
+  window.location.replace(url.toString());
+}
+
 function updateReadyButton() {
   if (serverState?.gameOver) {
     readyBtn.textContent = localReady ? "取消再来一局" : "再来一局(就绪)";
@@ -145,16 +163,82 @@ function updateReadyButton() {
   readyBtn.textContent = localReady ? "取消就绪" : "点击就绪";
 }
 
+function updateTextureButton() {
+  if (!toggleTextureBtn) return;
+  toggleTextureBtn.textContent = texturesEnabled ? "关闭贴图" : "开启贴图";
+}
+
+function getScale() {
+  const scaleX = config.width / VIRTUAL_WIDTH;
+  const scaleY = config.height / VIRTUAL_HEIGHT;
+  return Math.min(scaleX, scaleY);
+}
+
+function updateCameraViewport(scene) {
+  const scale = getScale();
+  const viewWidth = VIRTUAL_WIDTH * scale;
+  const viewHeight = VIRTUAL_HEIGHT * scale;
+  const offsetX = (config.width - viewWidth) / 2;
+  const offsetY = (config.height - viewHeight) / 2;
+  scene.cameras.main.setViewport(offsetX, offsetY, viewWidth, viewHeight);
+  scene.cameras.main.setZoom(scale);
+  scene.cameras.main.setScroll(0, 0);
+}
+
+function sendTextureToggle() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(
+    JSON.stringify({
+      type: "texture",
+      enabled: texturesEnabled
+    })
+  );
+}
+
+function updateDebugInfo() {
+  if (!debugEl) return;
+  const stateMap = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
+  const socketState = socket
+    ? stateMap[socket.readyState] || String(socket.readyState)
+    : "NONE";
+  const socketUrl = socket?.url || "未连接";
+  const playerCount = serverState?.players?.length || 0;
+  const playerList =
+    serverState?.players
+      ?.map((player) => `${player.id}:${player.side}`)
+      .join(", ") || "-";
+  debugEl.textContent =
+    `WS: ${socketUrl}\n` +
+    `状态: ${socketState}\n` +
+    `房间: ${roomId || "-"} | 本地ID: ${localId || "-"}\n` +
+    `玩家: ${playerCount} (${playerList})`;
+}
+
 function connect() {
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  if (socket && socket.readyState === WebSocket.OPEN) return;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  const protocol = isLocal
+    ? window.location.protocol === "https:"
+      ? "wss"
+      : "ws"
+    : "wss";
   socket = new WebSocket(
-    `${protocol}://${window.location.host}?room=${roomId}`
+    `${protocol}://${isLocal ? window.location.host : WS_HOST}?room=${roomId}`
   );
   readyBtn.disabled = true;
+  updateDebugInfo();
 
   socket.addEventListener("open", () => {
     statusEl.textContent = "等待玩家加入...";
     readyBtn.disabled = false;
+    reconnectAttempts = 0;
+    updateDebugInfo();
   });
 
   socket.addEventListener("message", (event) => {
@@ -162,19 +246,27 @@ function connect() {
     if (msg.type === "welcome") {
       localId = msg.id;
       localSide = msg.side;
+      predictedPlayer = null;
       if (msg.roomId) {
         roomId = msg.roomId;
         roomEl.textContent = `房间：${roomId}`;
       }
-      maxFullness = msg.config.maxFullness;
+      if (Number.isFinite(msg.config?.maxFullness)) {
+        maxFullness = msg.config.maxFullness;
+      }
       if (!game) {
-        config.width = msg.config.width;
-        config.height = msg.config.height;
+        config.width = window.innerWidth;
+        config.height = window.innerHeight;
         game = new Phaser.Game(config);
       }
+      updateDebugInfo();
     }
     if (msg.type === "state") {
       serverState = msg;
+      if (typeof msg.texturesEnabled === "boolean") {
+        texturesEnabled = msg.texturesEnabled;
+        updateTextureButton();
+      }
       if (msg.gameOver) {
         const winText =
           msg.loserId === localId ? "你被吃撑了！" : "对手被吃撑了！";
@@ -193,11 +285,38 @@ function connect() {
           statusEl.textContent = "战斗中";
         }
       }
+      updateDebugInfo();
     }
     if (msg.type === "full") {
       statusEl.textContent = "房间已满";
+      updateDebugInfo();
     }
   });
+
+  socket.addEventListener("close", () => {
+    statusEl.textContent = "连接已断开";
+    updateDebugInfo();
+    scheduleReconnect();
+  });
+
+  socket.addEventListener("error", () => {
+    statusEl.textContent = "连接异常";
+    updateDebugInfo();
+  });
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  if (document.hidden) {
+    reconnectTimer = setTimeout(scheduleReconnect, 1000);
+    return;
+  }
+  const delay = Math.min(5000, 800 + reconnectAttempts * 400);
+  reconnectAttempts += 1;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, delay);
 }
 
 function preload() {
@@ -233,7 +352,7 @@ function create() {
   if (this.textures.exists("bg_wave")) {
     this.backgroundSprite = this.add.image(0, 0, "bg_wave");
     this.backgroundSprite.setOrigin(0, 0);
-    this.backgroundSprite.setDisplaySize(config.width, config.height);
+    this.backgroundSprite.setDisplaySize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
     this.backgroundSprite.setAlpha(BACKGROUND_ALPHA);
     this.backgroundSprite.setDepth(0);
   }
@@ -251,11 +370,11 @@ function create() {
   this.input.on("pointermove", () => {});
   const resizeToWindow = () => {
     this.scale.resize(window.innerWidth, window.innerHeight);
-    this.cameras.main.setViewport(0, 0, window.innerWidth, window.innerHeight);
     config.width = window.innerWidth;
     config.height = window.innerHeight;
+    updateCameraViewport(this);
     if (this.backgroundSprite) {
-      this.backgroundSprite.setDisplaySize(config.width, config.height);
+      this.backgroundSprite.setDisplaySize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
     }
   };
   resizeToWindow();
@@ -263,15 +382,16 @@ function create() {
   this.scale.on("resize", (gameSize) => {
     config.width = gameSize.width;
     config.height = gameSize.height;
-    this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
-    if (this.backgroundSprite) {
-      this.backgroundSprite.setDisplaySize(config.width, config.height);
-    }
+    updateCameraViewport(this);
   });
 }
 
 function update(time, delta) {
   if (!serverState || !localId) return;
+  if (!serverState.started) {
+    renderScene(this, predictedPlayer || null, serverState);
+    return;
+  }
   const dt = delta / 1000;
   const player = serverState.players.find((p) => p.id === localId);
   if (!player) return;
@@ -290,8 +410,8 @@ function update(time, delta) {
   );
   predictedPlayer.x += moveInput.x * MOVE_SPEED * dt;
   predictedPlayer.y += moveInput.y * MOVE_SPEED * dt;
-  predictedPlayer.x = Phaser.Math.Clamp(predictedPlayer.x, 60, config.width - 60);
-  predictedPlayer.y = Phaser.Math.Clamp(predictedPlayer.y, 80, config.height - 60);
+  predictedPlayer.x = Phaser.Math.Clamp(predictedPlayer.x, 60, VIRTUAL_WIDTH - 60);
+  predictedPlayer.y = Phaser.Math.Clamp(predictedPlayer.y, 80, VIRTUAL_HEIGHT - 60);
 
   const serverPlayer = player;
   const distance = Phaser.Math.Distance.Between(
@@ -337,7 +457,8 @@ function getMoveInput(keys) {
 
 function getAimAngle(scene, player) {
   const pointer = scene.input.activePointer;
-  return Math.atan2(pointer.worldY - player.y, pointer.worldX - player.x);
+  const worldPoint = scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+  return Math.atan2(worldPoint.y - player.y, worldPoint.x - player.x);
 }
 
 function sendInput(time, move, aim, release) {
@@ -369,13 +490,13 @@ function renderScene(scene, localPlayer, state) {
   const overlay = scene.overlayGraphics;
   g.clear();
   overlay.clear();
-  if (!scene.backgroundSprite) {
+  if (!scene.backgroundSprite || !texturesEnabled) {
     g.fillStyle(0x111820, 1);
-    g.fillRect(0, 0, config.width, config.height);
+    g.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
   }
 
   const players = state.players.map((player) => {
-    if (player.id === localId) {
+    if (localPlayer && player.id === localId) {
       return {
         ...localPlayer,
         side: player.side,
@@ -398,7 +519,7 @@ function renderFoods(scene, graphics, players, foods) {
   for (const food of foods) {
     seen.add(food.id);
     const textureKey = getFoodTextureKey(food.value);
-    if (scene.textures.exists(textureKey)) {
+    if (texturesEnabled && scene.textures.exists(textureKey)) {
       let sprite = scene.foodSprites.get(food.id);
       if (!sprite) {
         sprite = scene.add.image(food.x, food.y, textureKey);
@@ -408,9 +529,9 @@ function renderFoods(scene, graphics, players, foods) {
         scene.foodSprites.set(food.id, sprite);
       } else if (sprite.texture.key !== textureKey) {
         sprite.setTexture(textureKey);
+        const size = FOOD_BASE_SIZE * getFoodScale(food.value);
+        sprite.setDisplaySize(size, size);
       }
-      const size = FOOD_BASE_SIZE * getFoodScale(food.value);
-      sprite.setDisplaySize(size, size);
       sprite.setPosition(food.x, food.y);
     } else {
       const sprite = scene.foodSprites.get(food.id);
@@ -444,9 +565,11 @@ function renderPlayers(scene, graphics, overlay, players) {
     const bodyKey = keys?.body;
     const chopstickKey = keys?.chopstick;
     const mouthKey = player.mouthOpen ? keys?.mouthOpen : keys?.mouthClosed;
-    const hasBody = bodyKey && scene.textures.exists(bodyKey);
-    const hasChopstick = chopstickKey && scene.textures.exists(chopstickKey);
-    const hasMouth = mouthKey && scene.textures.exists(mouthKey);
+    const canUseTextures = texturesEnabled && Boolean(keys);
+    const hasBody = canUseTextures && bodyKey && scene.textures.exists(bodyKey);
+    const hasChopstick =
+      canUseTextures && chopstickKey && scene.textures.exists(chopstickKey);
+    const hasMouth = canUseTextures && mouthKey && scene.textures.exists(mouthKey);
 
     if (hasBody) {
       let body = scene.playerSprites.get(player.id);
@@ -457,6 +580,7 @@ function renderPlayers(scene, graphics, overlay, players) {
         scene.playerSprites.set(player.id, body);
       } else if (body.texture.key !== bodyKey) {
         body.setTexture(bodyKey);
+        body.setDisplaySize(BODY_SIZE, BODY_SIZE);
       }
       body.setPosition(player.x, player.y);
       body.setFlipX(!facingRight);
@@ -478,11 +602,18 @@ function renderPlayers(scene, graphics, overlay, players) {
         chopstick.setOrigin(0.1, 0.5);
         const desiredLength = BODY_SIZE * CHOPSTICK_DISPLAY_SCALE;
         const baseWidth = chopstick.width || 1;
-        chopstick.setScale(desiredLength / baseWidth);
+        chopstick.setData("baseWidth", baseWidth);
+        const localScale = desiredLength / baseWidth;
+        chopstick.setScale(localScale);
         chopstick.setDepth(3);
         scene.chopstickSprites.set(player.id, chopstick);
       } else if (chopstick.texture.key !== chopstickKey) {
         chopstick.setTexture(chopstickKey);
+        const baseWidth =
+          chopstick.getData("baseWidth") || chopstick.width || 1;
+        const desiredLength = BODY_SIZE * CHOPSTICK_DISPLAY_SCALE;
+        const localScale = desiredLength / baseWidth;
+        chopstick.setScale(localScale);
       }
       chopstick.setPosition(player.x, player.y);
       chopstick.setRotation(player.angle);
@@ -503,21 +634,29 @@ function renderPlayers(scene, graphics, overlay, players) {
     const mouth = mouthPosition(player);
     if (hasMouth) {
       let mouthSprite = scene.mouthSprites.get(player.id);
+      const prevOpen = mouthSprite?.getData("mouthOpen");
       const baseSize =
         player.side === "right" ? MOUTH_SIZE * RIGHT_MOUTH_SCALE : MOUTH_SIZE;
       const size = player.mouthOpen
         ? baseSize * MOUTH_OPEN_SCALE
         : baseSize;
       if (!mouthSprite) {
-        mouthSprite = scene.add.image(mouth.x, mouth.y, mouthKey);
+        mouthSprite = scene.add.image(
+          mouth.x,
+          mouth.y,
+          mouthKey
+        );
         mouthSprite.setDisplaySize(size, size);
         mouthSprite.setDepth(1);
         scene.mouthSprites.set(player.id, mouthSprite);
       } else if (mouthSprite.texture.key !== mouthKey) {
         mouthSprite.setTexture(mouthKey);
+        mouthSprite.setDisplaySize(size, size);
+      } else if (prevOpen !== player.mouthOpen) {
+        mouthSprite.setDisplaySize(size, size);
       }
-      mouthSprite.setDisplaySize(size, size);
       mouthSprite.setPosition(mouth.x, mouth.y);
+      mouthSprite.setData("mouthOpen", player.mouthOpen);
       mouthSprite.setFlipX(!facingRight);
     } else {
       const mouthSprite = scene.mouthSprites.get(player.id);
@@ -528,7 +667,11 @@ function renderPlayers(scene, graphics, overlay, players) {
       graphics.fillStyle(0xffd86b, 0.35);
       graphics.fillCircle(mouth.x, mouth.y, MOUTH_RADIUS);
       graphics.lineStyle(2, 0xffd86b, 0.9);
-      graphics.strokeCircle(mouth.x, mouth.y, MOUTH_RADIUS);
+      graphics.strokeCircle(
+        mouth.x,
+        mouth.y,
+        MOUTH_RADIUS
+      );
     }
 
     // Debug overlays removed for clean presentation.
@@ -599,11 +742,22 @@ function drawCone(graphics, origin, angle, radius, halfAngle, color) {
 
 initRoom();
 updateReadyButton();
+updateTextureButton();
 readyBtn.addEventListener("click", () => {
   if (readyBtn.disabled) return;
   localReady = !localReady;
   updateReadyButton();
   sendReady();
+});
+
+newRoomBtn.addEventListener("click", () => {
+  switchRoom();
+});
+
+toggleTextureBtn.addEventListener("click", () => {
+  texturesEnabled = !texturesEnabled;
+  updateTextureButton();
+  sendTextureToggle();
 });
 
 aboutBtn.addEventListener("click", () => {
